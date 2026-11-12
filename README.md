@@ -13,6 +13,12 @@ and the donation form never sends data anywhere.
 - **Sticky "Start my donation" button** on phones once the visitor scrolls past the form.
 - **All state pages** (`states/<state>/`), built from one template. In the real rebuild each keeps its current URL.
 - **How it works, FAQ, thank-you and 404 pages.**
+- **Proof up front, all taken from the current site:** the Car Donation Foundation totals, where the money goes,
+  the charities or Make-A-Wish chapters that benefit, the EIN with a link to the IRS charity search, and real donor quotes.
+- **Premium motion:** an animated $200M seal, rolling counters, a car that drives through the donation steps as you
+  scroll, and brand-specific touches (a rippling flag header for VFV; wish stars and shooting stars for WFW).
+  Motion only moves things, never fades text, pauses off screen, and switches off for visitors who ask their device
+  for reduced motion.
 - **Fast by design:** plain HTML, one small CSS file, one small script, self-hosted fonts, WebP images,
   and no third-party scripts.
 
@@ -21,12 +27,13 @@ Google Lighthouse, run locally on the home page and the donate page:
 
 | | Performance | Accessibility | Best practices |
 |---|---|---|---|
-| Phone | 99 | 100 | 100 |
+| Phone | 97 to 99 | 100 | 100 |
 | Desktop | 100 | 100 | 100 |
 
 For comparison, today's live homepage scored 46 to 77 on phones in PageSpeed Insights the same day.
 The SEO score reads low on purpose: the preview tells search engines not to index it. The live build removes that.
-Every page was also checked at 360, 390, 768 and 1440 px wide: no text under 16 px, no faded text, no sideways scrolling.
+Every page was also checked on a phone and a desktop screen: no text under 16 px, no faded text, no sideways scrolling,
+and every piece of text measured against the pixels actually behind it (photos included) passes WCAG AA contrast.
 
 ## What the live build adds
 - The form posts to NFM's intake, and saves a partial lead (with consent) after the contact step.
