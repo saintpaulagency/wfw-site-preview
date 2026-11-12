@@ -6,6 +6,7 @@ Writes plain HTML, CSS and JS with relative links, so the site works from any fo
 including a GitHub Pages project URL. The donation form is a demo: it never sends data.
 """
 import html
+import re
 import json
 import shutil
 import sys
@@ -46,20 +47,20 @@ BRANDS = {
         "head_font": "Oswald", "head_file": "oswald-latin-600-normal.woff2", "head_weight": 600,
         "hero_h1": "Donate your car to help disabled veterans",
         "hero_sub": "Free pickup, running or not. You get a tax-deductible receipt.",
-        "hero_points": ["Free towing anywhere in the U.S.", "Cars, trucks, boats, RVs, motorcycles and more", "A 501(c)(3) charity program since 2010"],
+        "hero_points": ["Free towing anywhere in the U.S.", "Cars, trucks, boats, RVs, motorcycles and more", "A 501(c)(3) charity, giving since 2010"],
         "cause_short": "disabled veterans",
         "badge_alt": "Car Donation Foundation badge: $200 million donated",
         "steps": [
             ("Tell us about your vehicle", "Pick the vehicle type, add your pickup ZIP and contact details. It's three short screens."),
-            ("Schedule your free pickup", "The nearest auction partner contacts you to set a pickup time that works for you."),
-            ("Get your tax receipt", "You receive an IRS tax receipt for your records after the vehicle sells."),
+            ("Schedule your free pickup", "Your donation goes to the nearest auction partner, who contacts you to schedule the pickup."),
+            ("Get your tax receipt", "You receive an IRS tax receipt for your records."),
         ],
         "faq": [
             ("Is my donation tax-deductible?", "Yes. Car Donation Foundation is a tax-exempt charity under section 501(c)(3) of the IRS Code, and you receive an IRS tax receipt for your records. Ask your tax advisor how the deduction applies to you."),
             ("Does my vehicle need to run?", "No. Pickup is free whether the vehicle runs or not."),
             ("What can I donate?", "Cars, trucks, motorcycles, boats, RVs, campers and ATVs."),
             ("How does pickup work?", "Your donation is assigned to the nearest auction partner, who contacts you to schedule the pickup at a time that suits you."),
-            ("Do I need the title?", "Tell us on the form whether you have the title. The team explains what's needed in your state before pickup."),
+            ("Do I need the title?", "Tell us on the form whether you have the title. Title rules vary by state, so ask when you're contacted about pickup."),
             ("Where does the money go?", "Car Donation Foundation donates the proceeds from Vehicles For Veterans to other tax-exempt charities that help disabled veterans, through programs such as transition services, help for homeless veterans, advocacy and employment assistance."),
         ],
         "nonprofit": "Vehicles For Veterans is Car Donation Foundation's vehicle donation program. Car Donation Foundation is a tax-exempt charity under section 501(c)(3) of the IRS Code and donates the proceeds from this program to other tax-exempt charities that help disabled veterans.",
@@ -78,22 +79,22 @@ BRANDS = {
                    "accent": "#F7D132", "soft": "#EEF3FC", "line": "#B9C3DA", "hero_ink": "#151B2E"},
         "head_font": "Nunito", "head_file": "nunito-latin-800-normal.woff2", "head_weight": 800,
         "hero_h1": "Your car donation helps a local child",
-        "hero_sub": "Free pickup nationwide, running or not. Proceeds benefit Make-A-Wish.",
-        "hero_points": ["Free towing anywhere in the U.S.", "A tax-deductible receipt for your records", "Most vehicles accepted, whatever the condition"],
+        "hero_sub": "Free pickup nationwide. Proceeds benefit Make-A-Wish.",
+        "hero_points": ["Free towing anywhere in the U.S.", "A tax-deductible receipt for your donation", "Most vehicles accepted, regardless of condition"],
         "cause_short": "local children",
         "badge_alt": "Car Donation Foundation badge: $200 million total donated across all charitable donations",
         "steps": [
             ("Tell us about your vehicle", "Pick the vehicle type, add your pickup ZIP and contact details. It's three short screens."),
-            ("Schedule your free pickup", "Our towing partner contacts you to set a pickup time that works for you."),
-            ("Get your tax receipt", "You receive a tax-deductible receipt, and your car helps grant a local child's wish."),
+            ("Get free towing", "After you send the form, our staff contacts you to arrange free towing."),
+            ("Get your tax receipt", "You get a tax-deductible receipt, and your car donation helps local children."),
         ],
         "faq": [
             ("Is my donation tax-deductible?", "Yes. Wheels For Wishes is a tax-exempt charity under Section 501(c)(3) of the IRS Code, and you receive a tax-deductible receipt. Ask your tax advisor how the deduction applies to you."),
-            ("Does my vehicle need to run?", "No. We accept most vehicles regardless of condition, and pickup is free."),
+            ("Does my vehicle need to run?", "Wheels For Wishes accepts most vehicles regardless of condition, and towing is free."),
             ("What can I donate?", "Cars, trucks, motorcycles, boats, RVs and motorhomes."),
-            ("How does pickup work?", "After you finish the form, our towing partner contacts you to schedule a free pickup."),
-            ("Do I need the title?", "Tell us on the form whether you have the title. The team explains what's needed in your state before pickup."),
-            ("How does my car help a child?", "Proceeds from donated cars go to Wheels For Wishes, benefiting Make-A-Wish chapters across the United States, which grant wishes to children with critical illnesses."),
+            ("How does pickup work?", "After you send the form, our staff contacts you to arrange free towing."),
+            ("Do I need the title?", "Tell us on the form whether you have the title. Title rules vary by state, so ask when you're contacted about pickup."),
+            ("How does my car help a child?", "Proceeds from donated cars go to Wheels For Wishes, benefiting Make-A-Wish chapters in various locations throughout the United States. They help grant wishes for children in their local communities who have been diagnosed with life-threatening medical conditions."),
         ],
         "nonprofit": "Proceeds from donated cars go to Wheels For Wishes, a tax-exempt charity under Section 501(c)(3) of the IRS Code, benefiting Make-A-Wish chapters in locations throughout the United States.",
         "ein": None,
@@ -107,6 +108,13 @@ MAKES = ["Acura", "Audi", "BMW", "Buick", "Cadillac", "Chevrolet", "Chrysler", "
 
 ICON_CHECK = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6L20.1 8.4 18.7 7z"/></svg>'
 ICON_PHONE = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg>'
+
+
+def icon_svg(file):
+    """Inline a Font Awesome duotone icon from the live site so CSS can color both tones."""
+    raw = (HERE / "src" / "vfv" / file).read_text()
+    raw = re.sub(r'<svg[^>]*viewBox="([^"]+)"[^>]*>', r'<svg class="vic" viewBox="\1" aria-hidden="true" focusable="false">', raw, count=1)
+    return raw.replace(' fill="currentColor"', "").replace(' opacity="0.4"', "")
 
 
 def esc(s):
@@ -170,7 +178,6 @@ p{{margin:0 0 1em}}
 .hero-sub{{font-size:1.1875rem;margin:0;font-weight:700}}
 .hero-points{{display:none;list-style:none;padding:0;margin:20px 0 0}}
 .hero-points li{{display:flex;gap:10px;align-items:center;margin:0 0 10px;font-size:1.125rem}}
-.hero-photo{{display:none}}
 /* start card */
 .start-card{{background:#fff;color:var(--ink);border-radius:var(--r);padding:20px;box-shadow:0 18px 40px -18px rgba(8,16,40,.55);border:1px solid var(--line)}}
 .start-card h2{{font-size:1.5rem;margin-bottom:12px}}
@@ -179,8 +186,9 @@ legend{{font-weight:900;font-size:1.125rem;padding:0;margin-bottom:10px}}
 .tiles{{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}}
 .tile{{position:relative}}
 .tile input{{position:absolute;opacity:0;width:1px;height:1px}}
-.tile label{{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:92px;padding:10px 6px;border:2px solid var(--line);border-radius:12px;cursor:pointer;text-align:center;font-weight:700;font-size:1rem;line-height:1.2;background:#fff}}
-.tile img{{width:46px;height:34px}}
+.tile label{{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:84px;padding:8px 6px;border:2px solid var(--line);border-radius:12px;cursor:pointer;text-align:center;font-weight:700;font-size:1rem;line-height:1.2;background:#fff}}
+.vic{{display:block}}.vic .fa-primary{{fill:var(--icon1)}}.vic .fa-secondary{{fill:var(--icon2);opacity:1}}
+.tile .vic{{width:42px;height:32px}}
 .tile input:checked+label{{border-color:var(--brand);background:var(--soft);box-shadow:inset 0 0 0 2px var(--brand)}}
 .tile input:focus-visible+label{{outline:3px solid var(--brand);outline-offset:2px}}
 .field{{margin-top:16px}}
@@ -204,8 +212,8 @@ input:focus,select:focus{{border-color:var(--navy);outline:3px solid var(--accen
 .section-soft{{background:var(--soft)}}
 .lead{{font-size:1.25rem;max-width:62ch}}
 .steps{{list-style:none;padding:0;margin:28px 0 0;display:grid;gap:22px;counter-reset:s}}
-.steps li{{display:grid;grid-template-columns:56px 1fr;gap:16px;align-items:start;counter-increment:s}}
-.steps li::before{{content:counter(s);display:grid;place-items:center;width:56px;height:56px;border-radius:50%;background:var(--navy);color:#fff;font:{b['head_weight']} 1.5rem var(--head)}}
+.steps li{{display:grid;grid-template-columns:64px 1fr;gap:18px;align-items:start;counter-increment:s}}
+.steps li::before{{content:counter(s);display:grid;place-items:center;width:64px;height:64px;border-radius:50%;background:var(--step-bg,var(--navy));color:var(--step-ink,#fff);font:{b['head_weight']} 2rem/1 var(--head)}}
 .steps h3{{margin:6px 0 4px}}
 .steps p{{margin:0}}
 .split{{display:grid;gap:28px;align-items:center}}
@@ -214,28 +222,47 @@ input:focus,select:focus{{border-color:var(--navy);outline:3px solid var(--accen
 .facts li{{border-left:6px solid var(--brand);padding:6px 0 6px 16px}}
 .facts strong{{display:block;font:{b['head_weight']} 2rem/1.1 var(--head);color:var(--navy)}}
 .quotes{{display:grid;gap:18px;margin-top:24px}}
-blockquote{{margin:0;background:#fff;border:2px solid var(--line);border-radius:var(--r);padding:20px}}
+blockquote{{margin:0;background:#fff;border:2px solid var(--line);border-radius:var(--r);padding:22px 22px 20px;position:relative}}
+blockquote::before{{content:"\\201C";display:block;font:900 5rem/.6 Georgia,serif;color:var(--brand);height:38px;margin-bottom:8px}}
 blockquote p{{font-size:1.1875rem}}
 blockquote footer{{font-weight:900}}
 .wishes{{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:24px;list-style:none;padding:0}}
-.wishes img{{border-radius:50%;width:100%;max-width:220px;aspect-ratio:1;object-fit:cover;margin:0 auto 10px;border:6px solid var(--accent)}}
+.wishes img{{border-radius:50%;width:100%;max-width:220px;aspect-ratio:1;object-fit:cover;margin:0 auto 12px;border:7px solid var(--ring,var(--accent))}}
 .wishes li{{text-align:center;font-size:1.0625rem}}
 .wishes strong{{display:block;font-size:1.1875rem}}
 .accept{{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;list-style:none;padding:0;margin:24px 0 0}}
-.accept li{{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;background:#fff;border:2px solid var(--line);border-radius:12px;padding:14px 10px;font-weight:700}}
-.accept img{{width:46px;height:34px}}
+.accept li{{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;background:#fff;border:2px solid var(--line);border-radius:16px;padding:20px 10px 16px;font-weight:900;font-size:1.0625rem}}
+.accept .vic{{width:60px;height:48px}}
 details{{border-bottom:2px solid var(--line);padding:4px 0}}
 summary{{cursor:pointer;font-weight:900;font-size:1.1875rem;padding:14px 0;list-style:none;display:flex;justify-content:space-between;gap:16px}}
 summary::-webkit-details-marker{{display:none}}
 summary::after{{content:"+";font-size:1.5rem;line-height:1;color:var(--brand)}}
 details[open] summary::after{{content:"–"}}
 details p{{margin:0 0 16px}}
-.state-list{{columns:2;column-gap:24px;list-style:none;padding:0;margin:20px 0 0}}
-.state-list li{{break-inside:avoid;margin:0 0 8px}}
-.state-list a{{font-weight:700;color:var(--ink)}}
-.cta-band{{background:var(--navy);color:#fff;text-align:left}}
-.cta-band h2{{color:#fff}}
-.cta-band p{{font-size:1.1875rem}}
+.state-list{{display:flex;flex-wrap:wrap;gap:10px;list-style:none;padding:0;margin:22px 0 0}}
+.state-list a{{display:inline-flex;align-items:center;min-height:44px;padding:8px 16px;border:2px solid var(--line);border-radius:999px;background:#fff;font-weight:700;font-size:1rem;color:var(--ink);text-decoration:none}}
+.state-list a:hover{{border-color:var(--brand);color:var(--ink);background:var(--soft)}}
+.cta-band{{background:var(--navy);color:#fff;text-align:left;position:relative;overflow:hidden}}
+.cta-band .wrap{{position:relative;z-index:1}}
+.cta-band h2{{color:#fff;font-size:clamp(2rem,5.2vw,3rem)}}
+.cta-band p{{font-size:1.25rem;font-weight:700}}
+.btn-invert{{background:#fff;color:var(--brand-dark)}}.btn-invert:hover{{background:var(--soft);color:var(--brand-dark)}}
+.btn-sun{{background:#F7D132;color:#151B2E}}.btn-sun:hover{{background:#FFE15C;color:#151B2E}}
+/* stat band */
+.band{{color:#fff;position:relative;overflow:hidden}}
+.band h2{{color:#fff}}
+.band .lead{{color:#fff}}
+.band .wrap{{position:relative;z-index:1}}
+.big-stats{{list-style:none;margin:30px 0 0;padding:0;display:grid;gap:26px}}
+.big-stats li{{display:flex;flex-direction:column;gap:6px;padding-left:18px;border-left:6px solid var(--stat-rule,#fff)}}
+.big-stats strong{{font:{b['head_weight']} clamp(2.6rem,10.5vw,4.25rem)/1 var(--head);color:#fff;letter-spacing:-.01em;white-space:nowrap}}
+.big-stats span{{font-size:1.1875rem;font-weight:700;max-width:30ch}}
+.source{{font-size:1rem;margin:28px 0 0;max-width:80ch;color:#fff}}
+.stars{{display:flex;gap:8px;margin:0 0 10px}}
+.stars svg{{width:22px;height:22px;fill:#E8283F}}
+.heart{{position:absolute;pointer-events:none;z-index:0}}
+.heart svg{{width:100%;height:100%;fill:currentColor;display:block}}
+.wave{{position:absolute;left:0;right:0;bottom:-1px;width:100%;height:34px;display:block;z-index:1}}
 /* footer */
 .site-footer{{background:#0B1528;color:#fff;padding:44px 0 120px;font-size:1rem}}
 .site-footer a{{color:#fff}}
@@ -300,12 +327,12 @@ details p{{margin:0 0 16px}}
   .site-nav .nav-cta a:hover{{background:var(--brand-dark)}}
   .hero .wrap{{grid-template-columns:1.05fr .95fr;gap:48px;padding-top:56px;padding-bottom:64px;align-items:center}}
   .hero-points{{display:block}}
-  .hero-photo{{display:block;margin-top:26px;border-radius:var(--r);max-height:280px;width:100%;object-fit:cover}}
+  .big-stats{{grid-template-columns:1fr 1fr;gap:40px}}
+  .steps{{grid-template-columns:repeat(3,1fr);gap:32px}}
   .start-card{{padding:28px}}
   .tiles{{grid-template-columns:repeat(5,1fr)}}
   .trust ul{{grid-template-columns:repeat(4,1fr)}}
   .split{{grid-template-columns:1fr 1fr;gap:56px}}
-  .quotes{{grid-template-columns:1fr 1fr}}
   .site-footer .cols{{grid-template-columns:1.4fr 1fr 1fr}}
   .site-footer{{padding-bottom:44px}}
   .sticky-cta{{display:none}}
@@ -313,29 +340,91 @@ details p{{margin:0 0 16px}}
   .accept{{grid-template-columns:repeat(4,1fr)}}
   .section{{padding:80px 0}}
 }}
-@media (prefers-reduced-motion:reduce){{*{{transition:none!important;scroll-behavior:auto!important}}}}
+@keyframes rise{{from{{transform:translateY(28px)}}to{{transform:none}}}}
+.hero-form .start-card{{animation:rise .7s cubic-bezier(.2,.8,.2,1) both}}
+@media (prefers-reduced-motion:reduce){{*{{transition:none!important;animation:none!important;scroll-behavior:auto!important}}}}
 """
 
 
 def brand_css_extra(key):
     if key == "vfv":
-        return """.hero{--hero-bg:#0F2747;background:#0F2747}
-.hero .hero-sub{color:#fff}
+        return """:root{--icon1:#0F2747;--icon2:#C8102E;--step-bg:#C8102E}
+.hero{--hero-bg:#0F2747;background:#0F2747}
+.hero::before,.hero::after{content:"";position:absolute;left:0;right:0;top:0;height:360px;z-index:0}
+.hero::before{background:url(../img/hero-480.webp) 70% 0/cover no-repeat}
+.hero::after{background:linear-gradient(180deg,rgba(15,39,71,.55) 0,rgba(15,39,71,.78) 52%,#0F2747 100%)}
+.hero .wrap{z-index:1}
+.hero h1{color:#fff;font-size:clamp(2.3rem,9.2vw,4.4rem);line-height:1.04;text-shadow:0 2px 16px rgba(4,12,28,.6)}
+.hero .hero-sub{color:#fff;text-shadow:0 1px 10px rgba(4,12,28,.6)}
 .hero-points .ico{color:#78C8F8}
-@media (min-width:960px){.hero{background:#0F2747 url(../img/chevrons.svg) right -40px top -60px/560px no-repeat}}
+.hero-points li{font-weight:700}
+.trust .ico{color:#C8102E}
+.band-vfv{background:#0F2747;--stat-rule:#E8283F}
+.cta-vfv{background:#C8102E}
+.cta-vfv h2,.cta-vfv p{max-width:20ch}.cta-vfv p{max-width:34ch}
+.framed{box-shadow:14px 14px 0 #C8102E;border-radius:var(--r)}
+@media (min-width:960px){
+.hero{background:#0F2747 url(../img/chevrons.svg) right -60px top -90px/540px no-repeat}
+.hero::before,.hero::after{right:auto;width:58%;height:auto;bottom:0}
+.hero::before{background:url(../img/hero-856.webp) 50% 30%/cover no-repeat}
+.hero::after{background:linear-gradient(90deg,rgba(15,39,71,.82) 0,rgba(15,39,71,.6) 60%,rgba(15,39,71,.92) 90%,#0F2747 100%)}
+.hero .wrap{padding-top:64px;padding-bottom:72px}
+.band-vfv{background:#0F2747 url(../img/chevrons.svg) right -150px top -120px/460px no-repeat}
+.band-vfv .wrap{padding-right:300px}
+.cta-vfv{background:#C8102E url(../img/chevrons-light.svg) right -20px center/480px no-repeat}
+}
 """
-    return """.hero{--hero-bg:#F7D132;background:#F7D132}
-.hero .wrap{grid-template-areas:"copy" "form" "media"}
+    return """:root{--icon1:#1C3A8A;--icon2:#C2255C}
+.hero{--hero-bg:#F7D132;background:#F7D132}
+.hero .wrap{grid-template-areas:"copy" "form" "media";padding-bottom:58px;z-index:1}
 .hero-copy{grid-area:copy}.hero-form{grid-area:form}
+.hero h1{font-size:clamp(2.3rem,9vw,3.9rem);line-height:1.08}
 .hero-media{grid-area:media;position:relative}
-.hero-media img{width:100%;height:200px;object-fit:cover;object-position:62% 35%;border-radius:14px}
-.hero-caption{position:absolute;left:12px;bottom:10px;background:#fff;color:#151B2E;font-weight:700;font-size:1rem;line-height:1.3;border-radius:999px;padding:6px 14px;max-width:calc(100% - 24px)}
+.hero-media img{width:100%;height:200px;object-fit:cover;object-position:62% 35%;border-radius:20px;border:5px solid #fff}
+.hero-caption{position:absolute;left:14px;bottom:12px;background:#fff;color:#151B2E;font-weight:700;font-size:1rem;line-height:1.3;border-radius:999px;padding:6px 14px;max-width:calc(100% - 28px)}
 .hero-points .ico{color:#C2255C}
-@media (min-width:960px){.hero .wrap{grid-template-areas:"media form" "copy form";align-items:start;row-gap:28px}.hero-form{align-self:center}.hero-media img{height:250px}.hero-caption{left:16px;bottom:16px}}
+.hero-points li{font-weight:700}
+.avatars{display:flex;align-items:center;gap:12px;margin-top:14px}
+.faces{display:flex;flex:none}
+.faces img{width:40px;height:40px;border-radius:50%;border:3px solid #fff;margin-left:-10px;object-fit:cover}
+.faces img:first-child{margin-left:0}
+.avatars p{margin:0;font-weight:900;font-size:1rem;line-height:1.3}
+.wave path{fill:#EEF3FC}
+.heart.h1{color:#C2255C;width:40px;height:40px;top:14px;right:14px;transform:rotate(14deg)}
+.heart.h2{display:none;color:#1E8C82}
+.heart.h3{color:#F7D132;width:120px;height:120px;right:-28px;bottom:-26px;transform:rotate(-12deg)}
+.heart.h4{color:#C2255C;width:110px;height:110px;right:-20px;top:-24px;transform:rotate(16deg)}
+.trust .ico{color:#C2255C}
+.steps li:nth-child(1){--step-bg:#F7D132;--step-ink:#151B2E}
+.steps li:nth-child(2){--step-bg:#C2255C}
+.steps li:nth-child(3){--step-bg:#1C3A8A}
+.band-wfw{background:#C2255C;--stat-rule:#F7D132}
+.wishes li:nth-child(4n+1){--ring:#F7D132}
+.wishes li:nth-child(4n+2){--ring:#C2255C}
+.wishes li:nth-child(4n+3){--ring:#1E8C82}
+.wishes li:nth-child(4n+4){--ring:#1C3A8A}
+.cta-wfw{background:#1C3A8A}
+.framed{box-shadow:14px 14px 0 #F7D132;border-radius:var(--r)}
+@media (max-width:420px){.hero h1{padding-right:34px}}
+@media (min-width:960px){
+.hero .wrap{grid-template-areas:"media form" "copy form";align-items:start;row-gap:28px;padding-bottom:84px}
+.hero-form{align-self:center}.hero-media img{height:250px}.hero-caption{left:18px;bottom:18px}
+.heart.h1{width:64px;height:64px;top:28px;right:auto;left:calc(50% - 40px)}
+.heart.h2{display:block;width:40px;height:40px;top:auto;bottom:70px;left:calc(50% - 6px);transform:rotate(-16deg)}
+.wave{height:56px}
+.heart.h3{width:220px;height:220px;right:-40px;bottom:-50px}
+.heart.h4{width:200px;height:200px;right:4%;top:-40px}
+}
 """
+
+
+STARS = '<div class="stars" aria-hidden="true">' + ''.join('<svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.9 7.1.6-5.4 4.7 1.7 7-6.3-3.9-6.3 3.9 1.7-7L2 9.5l7.1-.6z"/></svg>' for _ in range(3)) + '</div>'
+HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.2C.8 8.3 2.9 4.5 6.6 4.5c2.1 0 3.6 1.1 5.4 3.1 1.8-2 3.3-3.1 5.4-3.1 3.7 0 5.8 3.8 4.2 7.3C19.5 16.4 12 21 12 21z"/></svg>'
+WAVE = '<svg class="wave" viewBox="0 0 1440 60" preserveAspectRatio="none" aria-hidden="true"><path d="M0 34C200 66 420 4 720 28s520 34 720 2v30H0z"/></svg>'
 
 
 CHEVRON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"><g fill="none" stroke-width="44"><path d="M20 120 200 300 380 120" stroke="#C8102E"/><path d="M20 210 200 390 380 210" stroke="#78C8F8"/><path d="M20 30 200 210 380 30" stroke="#1D3E6B"/></g></svg>"""
+CHEVRON_RED_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"><g fill="none" stroke-width="44"><path d="M20 120 200 300 380 120" stroke="#FFFFFF"/><path d="M20 210 200 390 380 210" stroke="#78C8F8"/><path d="M20 30 200 210 380 30" stroke="#0F2747"/></g></svg>"""
 
 
 # ---------------------------------------------------------------------------
@@ -485,6 +574,7 @@ def head(b, key, P, title, desc, path):
 <link rel="icon" href="{P}assets/img/icon-512.png">
 <link rel="preload" href="{P}assets/fonts/{b['head_file']}" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="{P}assets/fonts/lato-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+{('<link rel="preload" as="image" href="' + P + 'assets/img/hero-480.webp" media="(max-width:959px)">' + chr(10) + '<link rel="preload" as="image" href="' + P + 'assets/img/hero-856.webp" media="(min-width:960px)">') if key == 'vfv' else ''}
 <link rel="stylesheet" href="{P}assets/css/site.css">
 <script src="{P}assets/js/site.js" defer></script>
 </head>
@@ -513,11 +603,11 @@ def header(b, key, P):
 
 def tiles(name_prefix, checked=None):
     out = ['<div class="tiles">']
-    for i, (val, label, icon) in enumerate(VEHICLES):
+    for val, label, icon in VEHICLES:
         idp = f"{name_prefix}-{val}"
         chk = " checked" if checked == val else ""
         out.append(f'<div class="tile"><input type="radio" name="vehicle" id="{idp}" value="{val}"{chk}>'
-                   f'<label for="{idp}"><img src="{{P}}assets/img/{icon}" width="46" height="34" alt="">{label}</label></div>')
+                   f'<label for="{idp}">{icon_svg(icon.replace(".svg", "-duotone.svg"))}{label}</label></div>')
     out.append("</div>")
     return "".join(out)
 
@@ -562,17 +652,18 @@ def page(b, key, P, title, desc, path, body, with_sticky=False):
 
 
 def trust(b, key, P):
+    pickup = "Free pickup, running or not" if key == "vfv" else "Free pickup nationwide"
     return f"""<section class="trust" aria-label="Why donate with us"><div class="wrap"><ul>
-<li><img src="{P}assets/img/badge.webp" width="{56 if key == 'vfv' else 68}" height="56" alt="{esc(b['badge_alt'])}"><span>$200 million donated by Car Donation Foundation programs</span></li>
-<li>{ICON_CHECK}<span>Free pickup, running or not</span></li>
+<li><img src="{P}assets/img/badge.webp" width="{56 if key == 'vfv' else 68}" height="56" alt="{esc(b['badge_alt'])}"><span>$200 million donated by Car Donation Foundation programs since 2010</span></li>
+<li>{ICON_CHECK}<span>{pickup}</span></li>
 <li>{ICON_CHECK}<span>Tax-deductible receipt</span></li>
-<li>{ICON_CHECK}<span>501(c)(3) charity since 2010</span></li>
+<li>{ICON_CHECK}<span>501(c)(3) charity</span></li>
 </ul></div></section>"""
 
 
 def steps_section(b, P, soft=False):
     items = "".join(f"<li><div><h3>{esc(t)}</h3><p>{esc(d)}</p></div></li>" for t, d in b["steps"])
-    return f"""<section class="section{' section-soft' if soft else ''}"><div class="wrap">
+    return f"""<section class="section steps-section{' section-soft' if soft else ''}"><div class="wrap">
 <h2>How it works</h2><p class="lead">Three steps, and the free pickup comes to you.</p>
 <ol class="steps">{items}</ol>
 </div></section>"""
@@ -584,10 +675,10 @@ def faq_list(b, n=None):
 
 
 def accept_section(P):
-    items = [("car.svg", "Cars and trucks"), ("motorcycle.svg", "Motorcycles"), ("ship.svg", "Boats"), ("rv.svg", "RVs and campers")]
-    lis = "".join(f'<li><img src="{P}assets/img/{i}" width="46" height="34" alt="">{t}</li>' for i, t in items)
+    items = [("car-duotone.svg", "Cars and trucks"), ("motorcycle-duotone.svg", "Motorcycles"), ("ship-duotone.svg", "Boats"), ("rv-duotone.svg", "RVs and campers")]
+    lis = "".join(f"<li>{icon_svg(i)}{t}</li>" for i, t in items)
     return f"""<section class="section"><div class="wrap">
-<h2>What you can donate</h2><p class="lead">Running or not, most vehicles qualify.</p>
+<h2>What you can donate</h2><p class="lead">Most vehicles qualify, whatever the condition.</p>
 <ul class="accept">{lis}</ul></div></section>"""
 
 
@@ -602,13 +693,17 @@ def hero(b, key, P, h1=None, sub=None):
     sub = sub or b["hero_sub"]
     points = "".join(f"<li>{ICON_CHECK}<span>{esc(p)}</span></li>" for p in b["hero_points"])
     if key == "vfv":
-        left = f"""<div class="hero-copy"><h1>{esc(h1)}</h1><p class="hero-sub">{esc(sub)}</p>
-<ul class="hero-points">{points}</ul>
-<picture><source media="(min-width:960px)" srcset="{P}assets/img/hero-856.webp"><img class="hero-photo" src="{P}assets/img/hero-480.webp" width="856" height="662" alt="A veteran in uniform, seated in a wheelchair in front of an American flag" loading="lazy"></picture></div>"""
+        left = f"""<div class="hero-copy">{STARS}<h1>{esc(h1)}</h1><p class="hero-sub">{esc(sub)}</p>
+<ul class="hero-points">{points}</ul></div>"""
+        deco = ""
     else:
+        faces = "".join(f'<img src="{P}assets/img/av-{k}.webp" width="40" height="40" alt="">' for k in ("ethan", "chloe", "areice", "jack"))
         left = f"""<div class="hero-media"><img src="{P}assets/img/hero-640.webp" srcset="{P}assets/img/hero-640.webp 640w, {P}assets/img/hero-1280.webp 1280w" sizes="(min-width:960px) 560px, 100vw" width="640" height="249" alt="Clara and her mother smiling outdoors" loading="lazy"><span class="hero-caption">Clara, 7, wished to go on a Disney cruise</span></div>
-<div class="hero-copy"><h1>{esc(h1)}</h1><p class="hero-sub">{esc(sub)}</p><ul class="hero-points">{points}</ul></div>"""
-    return f"""<section class="hero"><div class="wrap">{left}
+<div class="hero-copy"><h1>{esc(h1)}</h1><p class="hero-sub">{esc(sub)}</p>
+<div class="avatars"><div class="faces">{faces}</div><p>14,673 wishes granted with help from donors</p></div>
+<ul class="hero-points">{points}</ul></div>"""
+        deco = f'<span class="heart h1">{HEART}</span><span class="heart h2">{HEART}</span>{WAVE}'
+    return f"""<section class="hero">{deco}<div class="wrap">{left}
 <div class="hero-form">{start_card(b, P)}</div>
 </div></section>"""
 
@@ -616,31 +711,39 @@ def hero(b, key, P, h1=None, sub=None):
 def home(b, key):
     P = ""
     if key == "vfv":
-        impact = f"""<section class="section"><div class="wrap split">
-<div><h2>Your car funds help for disabled veterans</h2>
-<p class="lead">Proceeds help fund programs for veterans who need assistance: transition services, help for homeless veterans, advocacy, employment assistance and more.</p>
-<ul class="facts"><li><strong>4.0 million</strong>veterans live with a service-connected disability</li><li><strong>40,000</strong>veterans are estimated to be homeless, according to HUD</li></ul></div>
-<img src="{P}assets/img/veterans-photo.webp" width="1200" height="516" alt="A hand holding a photo of two smiling veterans" loading="lazy"></div></section>
-<section class="section section-soft"><div class="wrap"><h2>What donors say</h2><div class="quotes">
+        impact = f"""<section class="section band band-vfv"><div class="wrap">
+<h2>Your car helps fund support for disabled veterans</h2>
+<p class="lead">Proceeds help fund programs for veterans in need: transition services, help for homeless veterans, advocacy, employment assistance and more.</p>
+<ul class="big-stats"><li><strong>6.3 million</strong><span>veterans receive VA disability compensation</span></li><li><strong>32,495</strong><span>veterans were experiencing homelessness on one night in January 2025</span></li></ul>
+<p class="source">Sources: U.S. Department of Veterans Affairs, Annual Benefits Report, FY2025 (6,338,253 veterans as of Sept 30, 2025). HUD, 2025 Annual Homeless Assessment Report.</p>
+</div></section>
+<section class="section"><div class="wrap split">
+<img class="framed" src="{P}assets/img/veterans-photo.webp" width="1200" height="516" alt="A hand holding a photo of two smiling veterans" loading="lazy">
+<div><h2>What donors say</h2><div class="quotes">
 <blockquote><p>“Your website was really easy, and the details offered on the page such as explaining about the tax deduction, no costs, etc, was very useful.”</p><footer>Amy Meadows, Toyota donor, California</footer></blockquote>
 <blockquote><p>“The process was very easy. A well informed form and pick-up of the vehicle is a great option.”</p><footer>Steve Smith, Private First Class, California</footer></blockquote>
-</div></div></section>"""
+</div></div></div></section>"""
+        cta = f"""<section class="section cta-band cta-vfv"><div class="wrap"><h2>Ready to donate your vehicle?</h2><p>Three short screens, then the free pickup comes to you.</p><a class="btn btn-invert" href="{P}donate/index.html">Start my donation</a></div></section>"""
     else:
         kids = [("ethan", "Ethan, 6", "wished to be a garbage man"), ("chloe", "Chloe, 8", "wished to visit a dude ranch"),
                 ("areice", "Areice, 5", "wished to be a pirate"), ("jack", "Jack, 14", "wished to ski in Aspen")]
         lis = "".join(f'<li><img src="{P}assets/img/wish-{k}.webp" width="300" height="300" alt="{n}" loading="lazy"><strong>{n}</strong>{w}</li>' for k, n, w in kids)
-        impact = f"""<section class="section"><div class="wrap">
-<h2>Cars like yours granted these wishes</h2>
-<p class="lead">As of September 2026, donors have helped Wheels For Wishes raise $125,695,697 and grant more than 14,673 wishes.</p>
+        impact = f"""<section class="section band band-wfw"><span class="heart h3">{HEART}</span><div class="wrap">
+<h2>Cars like yours grant wishes</h2>
+<ul class="big-stats"><li><strong>14,673</strong><span>wishes granted with help from donors like you, as of September 2026</span></li><li><strong>$125.7 million</strong><span>raised by Wheels For Wishes since 2010</span></li></ul>
+</div></section>
+<section class="section wishes-section"><div class="wrap">
+<h2>Meet some of the wish kids</h2>
+<p class="lead">Every car donation helps a child in your community have a wish come true.</p>
 <ul class="wishes">{lis}</ul></div></section>
 <section class="section section-soft"><div class="wrap split">
-<img src="{P}assets/img/check.webp" width="900" height="601" alt="A family holding a large Car Donation Foundation check made out to Make-A-Wish" loading="lazy">
-<div><h2>Every wish starts in your community</h2><p class="lead">Wheels For Wishes benefits Make-A-Wish chapters across the United States, helping grant wishes for children in their local communities who have critical illnesses.</p>
-<p>A wish gives a child a chance to focus on something other than medical routines, and be a kid again.</p></div></div></section>"""
-    body = (hero(b, key, P) + trust(b, key, P) + steps_section(b, P) + impact + accept_section(P)
+<img class="framed" src="{P}assets/img/check.webp" width="900" height="601" alt="A family holding a large Car Donation Foundation check made out to Make-A-Wish" loading="lazy">
+<div><h2>Every wish starts in your community</h2><p class="lead">Wheels For Wishes benefits Make-A-Wish chapters in various locations throughout the United States, helping grant wishes for children in their local communities who have been diagnosed with life-threatening medical conditions.</p>
+<p>A wish is an opportunity for a child to focus on something other than their medical routines, and be a kid again.</p></div></div></section>"""
+        cta = f"""<section class="section cta-band cta-wfw"><span class="heart h4">{HEART}</span><div class="wrap"><h2>Help make a child's wish come true</h2><p>Three short screens, then free towing is arranged for you.</p><a class="btn btn-sun" href="{P}donate/index.html">Start my donation</a></div></section>"""
+    body = (hero(b, key, P) + trust(b, key, P) + steps_section(b, P, soft=True) + impact + accept_section(P)
             + f"""<section class="section"><div class="wrap"><h2>Questions donors ask</h2>{faq_list(b, 4)}<p style="margin-top:20px"><a href="{P}faq/index.html">See all questions</a></p></div></section>"""
-            + states_section(P)
-            + f"""<section class="section cta-band"><div class="wrap"><h2>Ready to donate your vehicle?</h2><p>Three short screens, then the free pickup comes to you.</p><a class="btn" href="{P}donate/index.html">Start my donation</a></div></section>""")
+            + states_section(P) + cta)
     return page(b, key, P, b["title"], b["description"], "", body, with_sticky=True)
 
 
@@ -703,7 +806,7 @@ def thanks(b, key):
 <div class="big-check">{ICON_CHECK}</div>
 <h1 style="font-size:2.25rem">Thank you<span data-name></span>!</h1>
 <p class="lead" style="margin:0 auto">Your donation is started. Here's what happens next:</p>
-<ol><li>The pickup team contacts you to schedule a time.</li><li>Your vehicle is picked up for free, running or not.</li><li>You receive your tax receipt by mail.</li></ol>
+<ol><li>You're contacted to schedule a free pickup.</li><li>Your vehicle is picked up at no cost to you.</li><li>You receive your tax-deductible receipt.</li></ol>
 <p class="preview-note">Preview only: nothing was sent. In the live site, this page also confirms the details NFM received.</p>
 <p><a href="{P}index.html">Back to the home page</a></p>
 </div></div></section>"""
@@ -715,8 +818,8 @@ def how(b, key):
     body = f"""<section class="page-hero"><div class="wrap"><p class="crumbs"><a href="{P}index.html">Home</a></p><h1>How car donation works</h1><p>Donating takes three short screens online. Pickup is free, and you get a tax-deductible receipt.</p></div></section>
 {steps_section(b, P)}
 <section class="section section-soft"><div class="wrap"><h2>What you need before pickup</h2>
-<ul class="facts"><li><strong>The title</strong>If you can't find it, say so on the form. The team explains what your state requires.</li><li><strong>The keys</strong>If you have them. Vehicles without keys can often still be picked up.</li><li><strong>Personal items out</strong>Clear the glove box, trunk and console before pickup day.</li></ul></div></section>
-<section class="section cta-band"><div class="wrap"><h2>Start your donation</h2><p>Pick your vehicle type and pickup ZIP to begin.</p><a class="btn" href="{P}donate/index.html">Start my donation</a></div></section>"""
+<ul class="facts"><li><strong>The title</strong>If you can't find it, tell us on the form. Title rules vary by state.</li><li><strong>The keys</strong>Have them ready for pickup day if you have them.</li><li><strong>Personal items out</strong>Clear the glove box, trunk and console before pickup day.</li></ul></div></section>
+<section class="section cta-band cta-{key}"><div class="wrap"><h2>Start your donation</h2><p>Pick your vehicle type and pickup ZIP to begin.</p><a class="btn {'btn-invert' if key == 'vfv' else 'btn-sun'}" href="{P}donate/index.html">Start my donation</a></div></section>"""
     return page(b, key, P, f"How car donation works | {b['name']}", b["description"], "how-it-works/", body)
 
 
@@ -724,7 +827,7 @@ def faq(b, key):
     P = "../"
     body = f"""<section class="page-hero"><div class="wrap"><p class="crumbs"><a href="{P}index.html">Home</a></p><h1>Car donation questions</h1><p>Answers drawn from the current site. CDF approves final wording before launch.</p></div></section>
 <section class="section"><div class="wrap" style="max-width:820px">{faq_list(b)}</div></section>
-<section class="section cta-band"><div class="wrap"><h2>Ready when you are</h2><a class="btn" href="{P}donate/index.html">Start my donation</a></div></section>"""
+<section class="section cta-band cta-{key}"><div class="wrap"><h2>Ready when you are</h2><a class="btn {'btn-invert' if key == 'vfv' else 'btn-sun'}" href="{P}donate/index.html">Start my donation</a></div></section>"""
     return page(b, key, P, f"Car donation FAQ | {b['name']}", b["description"], "faq/", body)
 
 
@@ -743,8 +846,8 @@ def state_page(b, key, state):
         para = f"Vehicles For Veterans picks up donated cars, trucks, boats, RVs and motorcycles across {state} at no cost to you. Proceeds go to charities that help disabled veterans, and you get an IRS tax receipt for your records."
     else:
         h1 = f"Donate your car in {state} and help a local child"
-        sub = f"Free pickup anywhere in {state}, running or not."
-        para = f"Wheels For Wishes picks up donated vehicles across {state} at no cost to you. Proceeds benefit Make-A-Wish, granting wishes to children with critical illnesses, and you get a tax-deductible receipt."
+        sub = f"Free pickup anywhere in {state}. Proceeds benefit Make-A-Wish."
+        para = f"Wheels For Wishes picks up donated vehicles across {state} at no cost to you. Proceeds benefit Make-A-Wish chapters, helping grant wishes for children diagnosed with life-threatening medical conditions, and you get a tax-deductible receipt."
     body = (hero(b, key, P, h1=h1, sub=sub)
             + f"""<section class="section"><div class="wrap"><h2>Car donation in {state}</h2><p class="lead">{esc(para)}</p>
 <p>This is the template for every state page. In the rebuild, each one keeps its current web address, so search rankings carry over.</p></div></section>"""
@@ -819,6 +922,11 @@ def build(key, out):
     shutil.copy(HERE / "src" / "spa-seal-104.webp", out / "assets/img/spa-seal.webp")
     if key == "vfv":
         (out / "assets/img/chevrons.svg").write_text(CHEVRON_SVG)
+        (out / "assets/img/chevrons-light.svg").write_text(CHEVRON_RED_SVG)
+    else:
+        from PIL import Image
+        for k in ("ethan", "chloe", "areice", "jack"):
+            Image.open(out / f"assets/img/wish-{k}.webp").convert("RGB").resize((80, 80), Image.LANCZOS).save(out / f"assets/img/av-{k}.webp", quality=82)
     pages = {
         "index.html": home(b, key),
         "404.html": not_found(b, key),
